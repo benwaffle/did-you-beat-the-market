@@ -41,7 +41,7 @@ export default function PortfolioAnalyzer() {
             const processedData = processVtiData(results.data as any[])
             setVtiData(processedData)
           },
-          error: (error) => {
+          error: (error: Error) => {
             setError(`Error parsing VTI data: ${error.message}`)
           },
         })
