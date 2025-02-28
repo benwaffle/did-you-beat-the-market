@@ -281,7 +281,7 @@ export default function PortfolioAnalyzer() {
           </div>
 
           <div className="lg:col-span-8">
-            <h2 className="text-xl font-semibold mb-4">Simulated Total Stock Market ETF Performance</h2>
+            <h2 className="text-xl font-semibold mb-4">Simulated Index Fund Portfolio Performance</h2>
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <PerformanceChart data={portfolioData.timeline} />
             </div>
