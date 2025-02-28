@@ -35,7 +35,6 @@ export interface TimelinePoint {
 // Portfolio data structure
 export interface PortfolioData {
   timeline: TimelinePoint[]
-  transactions: RobinhoodTransaction[]
   totalInvested: number
 }
 

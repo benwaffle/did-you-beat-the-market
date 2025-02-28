@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import PortfolioAnalyzer from "@/components/portfolio-analyzer"
 
 export const metadata: Metadata = {
-  title: "Did I Beat the Market? - Robinhood Portfolio Analyzer",
+  title: "Did You Beat the Market? - Robinhood Portfolio Analyzer",
   description: "Compare your Robinhood portfolio performance to a VTI buy-and-hold strategy",
 }
 
@@ -11,7 +11,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Did I Beat the Market?</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Did You Beat the Market?</h1>
           <p className="mt-1 text-sm text-gray-500">
             Compare your Robinhood portfolio performance to a VTI buy-and-hold strategy
           </p>

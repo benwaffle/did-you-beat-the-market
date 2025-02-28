@@ -101,7 +101,7 @@ export function findVtiPriceForDate(date: Date, vtiPrices: VtiPrice[]): VtiPrice
 }
 
 type SimulationTransaction = {
-  date: Date;
+  date: string;
   cash: number;
 };
 
@@ -119,16 +119,11 @@ export function calculateComparison(
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i]
 
-    console.log(
-      `Processing transaction ${i + 1}/${transactions.length}:`,
-      transaction
-    );
-
     if (transaction.transCode === "ACH" && transaction.description === "ACH Deposit") {
       totalInvested += transaction.amount
       
       simulation.push({
-        date: transaction.activityDate,
+        date: transaction.activityDate.toISOString().split('T')[0], // just YYYY-mm-dd
         cash: transaction.amount,
       })
 
@@ -136,8 +131,10 @@ export function calculateComparison(
     } else if (transaction.transCode === "ACH" && transaction.description === "ACH CANCEL") {
       // TODO
       console.warn('Skipping ACH CANCEL', transaction)
+    } else if (transaction.transCode === "ACH") {
+      console.warn('Skipping ACH', transaction)
     } else {
-      console.warn('Skipping transaction', transaction)
+      // console.warn('Skipping transaction', transaction)
     }
     // TODO: withdrawals
   }
@@ -153,7 +150,6 @@ export function calculateComparison(
   
   return {
     timeline: continuousTimeline,
-    transactions,
     totalInvested,
   }
 }
@@ -174,8 +170,10 @@ export function createContinuousTimeline(
   let vtiSharesOwned = 0;
 
   for (const today of allDays) {
+    const ymd = today.toISOString().split('T')[0];
+
     const dollarsInvestedToday = simulation
-      .filter((t) => isSameDay(t.date, today))
+      .filter((t) => t.date === ymd)
       .reduce((acc, t) => {
         return acc + t.cash;
       }, 0);
@@ -186,8 +184,8 @@ export function createContinuousTimeline(
         console.log('No VTI price found for', today, 'pretending the money was deposited the next day')
         // pretend the money was deposited the next day. this should push purchases to open market days
         for (let i = 0; i < simulation.length; i++) {
-          if (isSameDay(simulation[i].date, today)) {
-            simulation[i].date = addDays(simulation[i].date, 1);
+          if (simulation[i].date === ymd) {
+            simulation[i].date = addDays(today, 1).toISOString().split('T')[0];
           }
         }
       }
