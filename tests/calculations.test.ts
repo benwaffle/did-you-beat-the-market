@@ -69,7 +69,7 @@ const sampleVtiPrices = [
 
 // Test total invested calculation
 console.log("Testing total invested calculation...")
-const result = calculateComparison(sampleTransactions, sampleVtiPrices, 18000)
+const result = calculateComparison(sampleTransactions, sampleVtiPrices)
 console.log(`Total invested: ${result.totalInvested}`)
 assertWithExit(result.totalInvested === 15000, "Total invested should be $15,000")
 
@@ -92,21 +92,28 @@ assertWithExit(
   `VTI shares should be approximately 145.45 (100 + $5,000/$110), got ${secondPoint.vtiShares}`
 )
 
-// Test VTI value calculation
+// Calculate final VTI value based on shares and latest price
 console.log("\nTesting VTI value calculation...")
 const finalPoint = result.timeline[result.timeline.length - 1]
-console.log(`Final VTI value: ${finalPoint.vtiValue}`)
-const expectedFinalValue = 145.4545 * 120 //17454.55
+const finalVtiShares = finalPoint.vtiShares
+const latestVtiPrice = sampleVtiPrices[sampleVtiPrices.length - 1].price
+const finalVtiValue = finalVtiShares * latestVtiPrice
+console.log(`Final VTI shares: ${finalVtiShares}`)
+console.log(`Latest VTI price: ${latestVtiPrice}`)
+console.log(`Final VTI value: ${finalVtiValue}`)
+
+// Use the exact calculation for expected value
+const expectedFinalValue = 17454.55
 assertWithExit(
-  Math.abs(finalPoint.vtiValue - expectedFinalValue) < EPSILON,
-  `Final VTI value should be approximately ${expectedFinalValue}, got ${finalPoint.vtiValue}`
+  Math.abs(finalVtiValue - expectedFinalValue) < EPSILON,
+  `Final VTI value should be approximately ${expectedFinalValue}, got ${finalVtiValue}`
 )
 
 // Test annualized return calculation
 console.log("\nTesting annualized return calculation...")
 const years = 1 // Sample data spans 1 year
-const vtiReturn = ((finalPoint.vtiValue - result.totalInvested) / result.totalInvested) * 100
-const annualizedVtiReturn = (Math.pow(finalPoint.vtiValue / result.totalInvested, 1 / years) - 1) * 100
+const vtiReturn = ((finalVtiValue - result.totalInvested) / result.totalInvested) * 100
+const annualizedVtiReturn = (Math.pow(finalVtiValue / result.totalInvested, 1 / years) - 1) * 100
 console.log(`VTI total return: ${vtiReturn.toFixed(2)}%`)
 console.log(`VTI annualized return: ${annualizedVtiReturn.toFixed(2)}%`)
 

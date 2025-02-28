@@ -24,9 +24,6 @@ export interface VtiPrice {
 // Timeline point for comparison
 export interface TimelinePoint {
   date: string
-  portfolioValue: number
-  vtiValue: number
-  portfolioCashFlow: number
   vtiShares: number
 }
 

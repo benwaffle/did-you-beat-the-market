@@ -4,14 +4,16 @@ import { useState } from "react"
 import { format } from "date-fns"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { Card, CardContent } from "@/components/ui/card"
-import type { TimelinePoint } from "@/lib/types"
+import type { TimelinePoint, VtiPrice } from "@/lib/types"
 
 interface PerformanceChartProps {
   data: TimelinePoint[]
+  vtiPrices: VtiPrice[]
+  currentValue: number
   showPortfolio?: boolean
 }
 
-export default function PerformanceChart({ data, showPortfolio = true }: PerformanceChartProps) {
+export default function PerformanceChart({ data, vtiPrices, currentValue, showPortfolio = true }: PerformanceChartProps) {
   const [timeframe, setTimeframe] = useState<"all" | "1y" | "6m" | "3m">("all")
 
   const filterData = () => {
@@ -37,11 +39,31 @@ export default function PerformanceChart({ data, showPortfolio = true }: Perform
     return data.filter((point) => new Date(point.date) >= cutoffDate)
   }
 
-  const chartData = filterData().map((point) => ({
-    ...point,
-    date: format(new Date(point.date), "MMM dd, yyyy"),
-    vtiValue: Number(point.vtiValue.toFixed(2)),
-  }))
+  // Calculate VTI values based on shares and prices
+  const chartData = filterData().map((point) => {
+    // Find the closest VTI price to this date
+    const pointDate = new Date(point.date)
+    const closestPrice = vtiPrices.reduce((closest, current) => {
+      const currentDiff = Math.abs(current.date.getTime() - pointDate.getTime())
+      const closestDiff = Math.abs(closest.date.getTime() - pointDate.getTime())
+      return currentDiff < closestDiff ? current : closest
+    }, vtiPrices[0])
+
+    // Calculate VTI value based on shares and price
+    const vtiValue = point.vtiShares * closestPrice.price
+
+    // For portfolio value, use current value for the last point, otherwise use the VTI value
+    // since we're no longer tracking cash balance in timeline points
+    const isLastPoint = point.date === data[data.length - 1].date
+    const portfolioValue = isLastPoint ? currentValue : vtiValue
+
+    return {
+      ...point,
+      date: format(new Date(point.date), "MMM dd, yyyy"),
+      vtiValue: Number(vtiValue.toFixed(2)),
+      portfolioValue,
+    }
+  })
 
   return (
     <div className="space-y-4">

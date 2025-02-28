@@ -1,13 +1,6 @@
 import type { RobinhoodTransaction, VtiPrice, PortfolioData, TimelinePoint } from "./types"
 
-interface SecurityHolding {
-  shares: number
-  avgPrice: number
-}
-
 interface PortfolioState {
-  cash: number
-  securities: Map<string, SecurityHolding>
   totalInvested: number
 }
 
@@ -65,7 +58,7 @@ export function processRobinhoodData(data: any[]): RobinhoodTransaction[] {
       // Keep all transactions with non-zero amounts
       return transaction.amount !== 0
     })
-    .sort((a, b) => a.activityDate.getTime() - b.activityDate.getTime()) // Sort by activity date
+    .reverse() // Reverse the order to process from oldest to newest
 }
 
 // Process VTI price data
@@ -92,23 +85,10 @@ export function processVtiData(data: any[]): VtiPrice[] {
     .sort((a, b) => a.date.getTime() - b.date.getTime()) // Sort by date
 }
 
-function calculatePortfolioValue(state: PortfolioState, latestPrices: Map<string, number>): number {
-  let totalValue = state.cash
-
-  // Add value of all securities
-  for (const [symbol, holding] of state.securities.entries()) {
-    const currentPrice = latestPrices.get(symbol) || holding.avgPrice
-    totalValue += holding.shares * currentPrice
-  }
-
-  return totalValue
-}
-
 // Calculate portfolio value and VTI comparison
 export function calculateComparison(
   transactions: RobinhoodTransaction[],
   vtiPrices: VtiPrice[],
-  currentValue: number,
 ): PortfolioData {
   if (transactions.length === 0) {
     throw new Error("No transactions found in the uploaded file")
@@ -120,13 +100,10 @@ export function calculateComparison(
 
   // Initialize portfolio state
   const portfolioState: PortfolioState = {
-    cash: 0,
-    securities: new Map(),
     totalInvested: 0,
   }
 
   const timeline: TimelinePoint[] = []
-  const latestPrices = new Map<string, number>()
   let vtiShares = 0
 
   // Process transactions chronologically and create timeline points
@@ -145,107 +122,85 @@ export function calculateComparison(
     switch (transaction.transCode) {
       case "Buy":
       case "BTO":
-        if (transaction.quantity && transaction.price) {
-          const holding = portfolioState.securities.get(transaction.instrument) || { shares: 0, avgPrice: 0 }
-          const newShares = holding.shares + transaction.quantity
-          const newAvgPrice = (holding.shares * holding.avgPrice + transaction.quantity * transaction.price) / newShares
-          portfolioState.securities.set(transaction.instrument, {
-            shares: newShares,
-            avgPrice: newAvgPrice,
-          })
-          latestPrices.set(transaction.instrument, transaction.price)
-          portfolioState.cash -= Math.abs(transaction.amount)
-          // Removed: portfolioState.totalInvested += Math.abs(transaction.amount)
-        }
-        break
-
       case "Sell":
       case "STC":
-        if (transaction.quantity) {
-          const holding = portfolioState.securities.get(transaction.instrument)
-          if (holding) {
-            const newShares = holding.shares - transaction.quantity
-            portfolioState.securities.set(transaction.instrument, {
-              shares: newShares,
-              avgPrice: holding.avgPrice,
-            })
-          }
-          if (transaction.price) {
-            latestPrices.set(transaction.instrument, transaction.price)
-          }
-          portfolioState.cash += Math.abs(transaction.amount)
-        }
         break
 
       case "ACH":
-        portfolioState.cash += transaction.amount
         if (transaction.amount > 0) {
           portfolioState.totalInvested += transaction.amount
+          
+          // Only update VTI shares for ACH deposits (cash inflows)
+          if (vtiPrices.length > 0) {
+            // Find the exact VTI price for this date
+            const transactionDate = transaction.activityDate.toISOString().split('T')[0];
+            const exactVtiPrice = vtiPrices.find(price => 
+              price.date.toISOString().split('T')[0] === transactionDate
+            );
+            
+            if (!exactVtiPrice) {
+              throw new Error(`No VTI price available for date: ${transactionDate}. Cannot calculate VTI shares.`);
+            }
+            
+            if (timeline.length === 0) {
+              // First transaction - initialize VTI position - maintain full precision
+              vtiShares = transaction.amount / exactVtiPrice.price;
+            } else {
+              // Add new shares based on the deposit amount
+              vtiShares += transaction.amount / exactVtiPrice.price;
+            }
+          }
         }
         break
 
+      // Cash-related transactions
+      case "INT":  // Interest
+      case "CDIV": // Cash Dividend
+      case "REC":  // Receive/Receipt
+        break
+
+      // Fee-related transactions
+      case "AFEE": // Account Fee
+      case "DFEE": // Dividend Fee
+        break
+        
+      // Transactions that don't affect our investment tracking
+      case "BCXL": // Buy Cancel
+      case "SCXL": // Sell Cancel
+      case "SOFF": // Settlement Offset
+      case "SPL":  // Stock Split
+      case "SPR":  // Stock Split Reversal
+      case "SXCH": // Stock Exchange
+      case "T/A":  // Transfer/Adjustment
+      case "MRGC": // Margin Call
+      case "MRGS": // Margin Sell
+      case "OCA":  // Option Assignment
+      case "OEXP": // Option Expiration
+      case "SLIP": // Price Improvement
+      case "FUTSWP": // Future Swap
+      case "DTAX":   // Dividend Tax
+        console.log(`Ignoring transaction type: ${transaction.transCode} with amount: ${transaction.amount}`)
+        break
+
       default:
-        portfolioState.cash += transaction.amount
-        if (transaction.amount > 0) {
-          portfolioState.totalInvested += transaction.amount
-        }
+        console.warn(`Unknown transaction type: ${transaction.transCode} with amount: ${transaction.amount}`)
     }
 
-    // Calculate intermediate portfolio value for historical tracking
-    const portfolioValue = calculatePortfolioValue(portfolioState, latestPrices)
-
-    // Find closest VTI price (if available)
-    let vtiValue = portfolioValue // Default to portfolio value if no VTI price available
-    if (vtiPrices.length > 0) {
-      const closestVtiPrice = vtiPrices.reduce((closest, current) => {
-        const currentDiff = Math.abs(current.date.getTime() - transaction.activityDate.getTime())
-        const closestDiff = Math.abs(closest.date.getTime() - transaction.activityDate.getTime())
-        return currentDiff < closestDiff ? current : closest
-      }, vtiPrices[0])
-
-      if (timeline.length === 0) {
-        // First transaction - initialize VTI position - maintain full precision
-        vtiShares = portfolioValue / closestVtiPrice.price
-      } else {
-        // Calculate cash flow and adjust VTI shares - maintain full precision
-        const lastPoint = timeline[timeline.length - 1]
-        const cashFlow = portfolioValue - lastPoint.portfolioValue
-        if (cashFlow !== 0) {
-          vtiShares += cashFlow / closestVtiPrice.price
-        }
-      }
-
-      // For the final point, use the last VTI price in the dataset
-      const vtiPrice = i === transactions.length - 1 && vtiPrices.length > 0
-        ? vtiPrices[vtiPrices.length - 1].price
-        : closestVtiPrice.price;
-
-      // Calculate VTI value - maintain full precision
-      vtiValue = vtiShares * vtiPrice
-    }
-
-    // Add timeline point
+    // Add timeline point - only track date and VTI shares
     timeline.push({
       date: dateStr,
-      portfolioValue: i === transactions.length - 1 ? currentValue : portfolioValue, // Use current value for last point
-      vtiValue,
-      portfolioCashFlow: portfolioState.cash,
       vtiShares,
     })
 
     console.log("Timeline point added:", {
       date: dateStr,
-      portfolioValue: i === transactions.length - 1 ? currentValue : portfolioValue,
-      vtiValue,
-      cash: portfolioState.cash,
+      vtiShares,
       totalInvested: portfolioState.totalInvested,
     })
   }
 
   // Log final state
   console.log("Final portfolio state:", {
-    cash: portfolioState.cash,
-    securitiesCount: portfolioState.securities.size,
     timelinePoints: timeline.length,
     totalInvested: portfolioState.totalInvested,
   })

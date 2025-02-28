@@ -101,7 +101,7 @@ export default function PortfolioAnalyzer() {
 
           setRobinhoodData(processedRobinhoodData)
 
-          const portfolioData = calculateComparison(processedRobinhoodData, vtiData, Number.parseFloat(currentValue))
+          const portfolioData = calculateComparison(processedRobinhoodData, vtiData)
 
           if (portfolioData.timeline.length === 0) {
             throw new Error("Could not generate timeline data. Please check your transaction history.")
@@ -112,7 +112,17 @@ export default function PortfolioAnalyzer() {
           // Calculate summary statistics
           const totalInvested = portfolioData.totalInvested
           const endValue = Number.parseFloat(currentValue)
-          const vtiEndValue = portfolioData.timeline[portfolioData.timeline.length - 1].vtiValue
+          
+          // Calculate VTI end value based on final VTI shares and the latest VTI price
+          const finalVtiShares = portfolioData.timeline[portfolioData.timeline.length - 1].vtiShares
+          const latestVtiPrice = vtiData[vtiData.length - 1].price
+          const vtiEndValue = finalVtiShares * latestVtiPrice
+
+          console.log("Final VTI calculation:", {
+            finalVtiShares,
+            latestVtiPrice,
+            vtiEndValue
+          })
 
           // Calculate years between first and last transaction
           const startDate = new Date(portfolioData.timeline[0].date)
@@ -266,7 +276,12 @@ export default function PortfolioAnalyzer() {
                 <CardDescription>How your money would have grown if invested in VTI</CardDescription>
               </CardHeader>
               <CardContent>
-                <PerformanceChart data={portfolioData.timeline} showPortfolio={false} />
+                <PerformanceChart 
+                  data={portfolioData.timeline} 
+                  vtiPrices={vtiData}
+                  currentValue={Number.parseFloat(currentValue)}
+                  showPortfolio={false} 
+                />
               </CardContent>
             </Card>
           </TabsContent>
