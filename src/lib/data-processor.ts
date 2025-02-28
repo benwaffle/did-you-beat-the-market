@@ -1,9 +1,5 @@
 import type { RobinhoodTransaction, VtiPrice, PortfolioData, TimelinePoint } from "./types"
 
-interface PortfolioState {
-  totalInvested: number
-}
-
 // Process Robinhood transaction data
 export function processRobinhoodData(data: any[]): RobinhoodTransaction[] {
   return data
@@ -98,18 +94,16 @@ export function calculateComparison(
   console.log(`First transaction: ${transactions[0].activityDate}`)
   console.log(`Last transaction: ${transactions[transactions.length - 1].activityDate}`)
 
-  // Initialize portfolio state
-  const portfolioState: PortfolioState = {
-    totalInvested: 0,
-  }
-
-  const timeline: TimelinePoint[] = []
-  let vtiShares = 0
+  // Initialize portfolio tracking variables
+  let totalInvested = 0;
+  const timeline: TimelinePoint[] = [];
+  let vtiShares = 0;
 
   // Process transactions chronologically and create timeline points
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i]
     const dateStr = transaction.activityDate.toISOString().split("T")[0]
+    let isVtiPurchase = false;  // Flag to track if this transaction adds VTI shares
 
     console.log(`Processing transaction ${i + 1}/${transactions.length}:`, {
       date: dateStr,
@@ -128,7 +122,7 @@ export function calculateComparison(
 
       case "ACH":
         if (transaction.amount > 0) {
-          portfolioState.totalInvested += transaction.amount
+          totalInvested += transaction.amount
           
           // Only update VTI shares for ACH deposits (cash inflows)
           if (vtiPrices.length > 0) {
@@ -142,13 +136,9 @@ export function calculateComparison(
               throw new Error(`No VTI price available for date: ${transactionDate}. Cannot calculate VTI shares.`);
             }
             
-            if (timeline.length === 0) {
-              // First transaction - initialize VTI position - maintain full precision
-              vtiShares = transaction.amount / exactVtiPrice.price;
-            } else {
-              // Add new shares based on the deposit amount
-              vtiShares += transaction.amount / exactVtiPrice.price;
-            }
+            // Add new shares based on the deposit amount (works for first transaction too since vtiShares starts at 0)
+            vtiShares += transaction.amount / exactVtiPrice.price;
+            isVtiPurchase = true;  // Mark this as a VTI purchase
           }
         }
         break
@@ -186,23 +176,25 @@ export function calculateComparison(
         console.warn(`Unknown transaction type: ${transaction.transCode} with amount: ${transaction.amount}`)
     }
 
-    // Add timeline point - only track date and VTI shares
+    // Add timeline point - track date, VTI shares, and purchase flag
     timeline.push({
       date: dateStr,
       vtiShares,
+      isVtiPurchase,
     })
 
     console.log("Timeline point added:", {
       date: dateStr,
       vtiShares,
-      totalInvested: portfolioState.totalInvested,
+      totalInvested,
+      isVtiPurchase,
     })
   }
 
   // Log final state
   console.log("Final portfolio state:", {
     timelinePoints: timeline.length,
-    totalInvested: portfolioState.totalInvested,
+    totalInvested,
   })
 
   if (timeline.length === 0) {
@@ -212,7 +204,7 @@ export function calculateComparison(
   return {
     timeline,
     transactions,
-    totalInvested: portfolioState.totalInvested,
+    totalInvested,
   }
 }
 

@@ -2,24 +2,22 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ExternalLink, Upload, AlertCircle, DollarSign } from "lucide-react"
-import Papa from "papaparse"
 import PerformanceChart from "@/components/performance-chart"
 import SummaryStats from "@/components/summary-stats"
-import { processRobinhoodData, processVtiData, calculateComparison } from "@/lib/data-processor"
-import type { RobinhoodTransaction, VtiPrice, PortfolioData, ComparisonResult } from "@/lib/types"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { calculateComparison, processRobinhoodData, processVtiData } from "@/lib/data-processor"
+import type { ComparisonResult, PortfolioData, VtiPrice } from "@/lib/types"
+import { AlertCircle, DollarSign, ExternalLink, Upload } from "lucide-react"
+import Papa from "papaparse"
+import { useEffect, useRef, useState } from "react"
 
 export default function PortfolioAnalyzer() {
   const [robinhoodFile, setRobinhoodFile] = useState<File | null>(null)
   const [currentValue, setCurrentValue] = useState<string>("")
-  const [robinhoodData, setRobinhoodData] = useState<RobinhoodTransaction[]>([])
   const [vtiData, setVtiData] = useState<VtiPrice[]>([])
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null)
@@ -98,8 +96,6 @@ export default function PortfolioAnalyzer() {
           if (processedRobinhoodData.length === 0) {
             throw new Error("No valid transactions found in the uploaded file")
           }
-
-          setRobinhoodData(processedRobinhoodData)
 
           const portfolioData = calculateComparison(processedRobinhoodData, vtiData)
 
@@ -259,33 +255,22 @@ export default function PortfolioAnalyzer() {
       </div>
 
       {portfolioData && comparisonResult && (
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="chart">Performance Chart</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-6">
+          <div className="lg:col-span-4 mb-6 lg:mb-0">
+            <h2 className="text-xl font-semibold mb-4">Performance Summary</h2>
             <SummaryStats comparisonResult={comparisonResult} />
-          </TabsContent>
+          </div>
 
-          <TabsContent value="chart">
-            <Card>
-              <CardHeader>
-                <CardTitle>VTI Buy & Hold Performance</CardTitle>
-                <CardDescription>How your money would have grown if invested in VTI</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PerformanceChart 
-                  data={portfolioData.timeline} 
-                  vtiPrices={vtiData}
-                  currentValue={Number.parseFloat(currentValue)}
-                  showPortfolio={false} 
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          <div className="lg:col-span-8">
+            <h2 className="text-xl font-semibold mb-4">VTI Buy & Hold Performance</h2>
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <PerformanceChart 
+                data={portfolioData.timeline} 
+                vtiPrices={vtiData}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

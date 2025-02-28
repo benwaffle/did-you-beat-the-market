@@ -25,6 +25,7 @@ export interface VtiPrice {
 export interface TimelinePoint {
   date: string
   vtiShares: number
+  isVtiPurchase?: boolean  // Flag to indicate if VTI was purchased at this point
 }
 
 // Portfolio data structure
