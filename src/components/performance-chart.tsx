@@ -1,22 +1,32 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import type { TimelinePoint } from "@/lib/types"
 import { format } from "date-fns"
-import { ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Scatter } from "recharts"
-import type { TimelinePoint, VtiPrice } from "@/lib/types"
+import { useMemo, useState } from "react"
+import { CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts"
 
-interface PerformanceChartProps {
-  data: TimelinePoint[]
-  vtiPrices: VtiPrice[]
+type DataPoint = {
+  date: string
+  portfolioValue: number
+  vtiShares: number
+  purchase?: {
+    shares: number
+    dollars: number
+    price: number
+  }
+  plotPurchase?: {
+    shares: number
+    dollars: number
+    price: number
+    portfolioValue: number
+  }
 }
 
-export default function PerformanceChart({
-  data,
-  vtiPrices,
-}: PerformanceChartProps) {
+export default function PerformanceChart({ data }: { data: TimelinePoint[] }) {
   const [timeframe, setTimeframe] = useState<"all" | "1y" | "6m" | "3m">("all");
 
-  const filterData = () => {
+  // Filter data based on selected timeframe
+  const filteredData = useMemo(() => {
     if (timeframe === "all") return data;
 
     const now = new Date();
@@ -37,55 +47,44 @@ export default function PerformanceChart({
     }
 
     return data.filter((point) => new Date(point.date) >= cutoffDate);
-  };
+  }, [data, timeframe]);
 
-  // Calculate VTI values based on shares and prices
-  const chartData = filterData().map((point, index, arr) => {
-    // Find the exact VTI price for this date
-    const pointDate = new Date(point.date);
-    const dateStr = pointDate.toISOString().split("T")[0];
+  const chartData: DataPoint[] = useMemo(() => {
+    const data: DataPoint[] = filteredData.map((point) => {
+      let purchase;
 
-    const exactVtiPrice = vtiPrices.find(
-      (price) => price.date.toISOString().split("T")[0] === dateStr
-    );
+      if (point.vtiPurchase) {
+        purchase = {
+          shares: point.vtiPurchase.shares,
+          dollars: point.vtiPurchase.shares * point.vtiPurchase.price,
+          price: point.vtiPurchase.price,
+        };
+      }
 
-    if (!exactVtiPrice) {
-      throw new Error(
-        `No VTI price available for date: ${dateStr}. Cannot calculate VTI value.`
-      );
-    }
+      return {
+        date: format(new Date(point.date), "MMM dd, yyyy"),
+        portfolioValue: Number(point.portfolioValue.toFixed(2)),
+        vtiShares: point.vtiSharesHeld,
+        purchase,
+      } satisfies DataPoint;
+    })
 
-    const vtiValue = point.vtiShares * exactVtiPrice.price;
-    
-    // Calculate shares purchased and dollars invested if this is a purchase point
-    let sharesPurchased = 0;
-    let dollarsInvested = 0;
-    
-    if (point.isVtiPurchase && index > 0) {
-      sharesPurchased = point.vtiShares - arr[index - 1].vtiShares;
-      // Calculate approximate dollars invested based on VTI price at that time
-      dollarsInvested = sharesPurchased * exactVtiPrice.price;
-    }
+    // offset the purchases to the previous day so that the indicators are at the bottom of the jumps
+    data.forEach((point, index) => {
+      if (point.purchase && index > 0) {
+        data[index - 1].plotPurchase = {
+          shares: point.purchase.shares,
+          dollars: point.purchase.dollars,
+          price: point.purchase.price,
+          portfolioValue: data[index - 1].portfolioValue,
+        };
+      }
+    });
 
-    return {
-      ...point,
-      date: format(new Date(point.date), "MMM dd, yyyy"),
-      vtiValue: Number(vtiValue.toFixed(2)),
-      // For scatter plot - only show a value if it's a purchase point
-      purchaseValue: point.isVtiPurchase ? vtiValue : null,
-      sharesPurchased,
-      dollarsInvested: Number(dollarsInvested.toFixed(2)),
-      vtiPrice: exactVtiPrice.price
-    };
-  });
-    
-  // Debug logging
-  useEffect(() => {
-    console.log("Timeline data:", data);
-    console.log("Chart data:", chartData);
-    console.log("VTI purchase flags:", chartData.map(point => point.isVtiPurchase));
-    console.log("Purchase values:", chartData.map(point => point.purchaseValue));
-  }, [data, chartData]);
+    return data;
+  }, [filteredData]);
+
+  console.log(chartData);
 
   return (
     <div className="space-y-4">
@@ -164,29 +163,27 @@ export default function PerformanceChart({
                     <div className="bg-white border border-gray-200 p-2 rounded shadow-md">
                       <p className="font-medium">{label}</p>
                       <p className="text-sm">
-                        VTI Value: ${dataPoint.vtiValue.toLocaleString()}
+                        Portfolio Value: ${dataPoint.portfolioValue.toLocaleString()}
                       </p>
                       <p className="text-sm">
-                        Total VTI Shares: {dataPoint.vtiShares.toFixed(2)}
+                        VTI Shares Held: {dataPoint.vtiShares.toFixed(2)}
                       </p>
-                      {dataPoint.isVtiPurchase && (
+                      {dataPoint.plotPurchase != null && (
                         <>
                           <p className="text-sm text-green-600 font-medium mt-1">
                             VTI Purchase
                           </p>
-                          {dataPoint.sharesPurchased > 0 && (
-                            <>
-                              <p className="text-sm">
-                                Shares Purchased: {dataPoint.sharesPurchased.toFixed(2)}
-                              </p>
-                              <p className="text-sm">
-                                Amount Invested: ${dataPoint.dollarsInvested.toLocaleString()}
-                              </p>
-                              <p className="text-sm">
-                                VTI Price: ${dataPoint.vtiPrice.toFixed(2)}
-                              </p>
-                            </>
-                          )}
+                          <p className="text-sm">
+                            Shares Purchased:{" "}
+                            {dataPoint.plotPurchase.shares.toFixed(2)}
+                          </p>
+                          <p className="text-sm">
+                            Amount Invested: $
+                            {dataPoint.plotPurchase.dollars.toLocaleString()}
+                          </p>
+                          <p className="text-sm">
+                            VTI Price: ${dataPoint.plotPurchase.price.toFixed(2)}
+                          </p>
                         </>
                       )}
                     </div>
@@ -198,20 +195,20 @@ export default function PerformanceChart({
             <Legend />
             <Line
               type="monotone"
-              dataKey="vtiValue"
-              name="VTI Buy & Hold"
+              dataKey="portfolioValue"
+              name="VTI Portfolio"
               stroke="#82ca9d"
               strokeWidth={2}
               dot={false}
+              activeDot={{ r: 6, fill: "#82ca9d" }}
+              connectNulls={true}
             />
-            
-            {/* Add scatter points for purchases */}
             <Scatter
-              name="VTI Purchase"
-              dataKey="purchaseValue"
-              fill="#4CAF50"
-              shape="star"
-              legendType="star"
+              name="Robinhood Deposit"
+              dataKey="plotPurchase.portfolioValue"
+              fill="#8884d8"
+              shape="triangle"
+              legendType="triangle"
             />
           </ComposedChart>
         </ResponsiveContainer>

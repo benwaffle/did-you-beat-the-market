@@ -110,15 +110,12 @@ export default function PortfolioAnalyzer() {
           const endValue = Number.parseFloat(currentValue)
           
           // Calculate VTI end value based on final VTI shares and the latest VTI price
-          const finalVtiShares = portfolioData.timeline[portfolioData.timeline.length - 1].vtiShares
-          const latestVtiPrice = vtiData[vtiData.length - 1].price
-          const vtiEndValue = finalVtiShares * latestVtiPrice
+          const finalPoint = portfolioData.timeline[portfolioData.timeline.length - 1]
+          const vtiEndValue = finalPoint.portfolioValue
 
           console.log("Final VTI calculation:", {
-            finalVtiShares,
-            latestVtiPrice,
-            vtiEndValue
-          })
+            vtiEndValue,
+          });
 
           // Calculate years between first and last transaction
           const startDate = new Date(portfolioData.timeline[0].date)
@@ -264,10 +261,7 @@ export default function PortfolioAnalyzer() {
           <div className="lg:col-span-8">
             <h2 className="text-xl font-semibold mb-4">VTI Buy & Hold Performance</h2>
             <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <PerformanceChart 
-                data={portfolioData.timeline} 
-                vtiPrices={vtiData}
-              />
+              <PerformanceChart data={portfolioData.timeline} />
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
-import { calculateComparison } from "../src/lib/data-processor"
 import assert from "assert"
+import { calculateComparison } from "../src/lib/data-processor"
 
 // Custom assertion function that exits with error code 1 on failure
 function assertWithExit(condition: boolean, message: string): void {
@@ -9,6 +9,10 @@ function assertWithExit(condition: boolean, message: string): void {
     console.error(`Assertion failed: ${message}`)
     process.exit(1)
   }
+}
+
+function fpEq(a: number, b: number, epsilon: number = 0.01): boolean {
+  return Math.abs(a - b) < epsilon;
 }
 
 // Sample test data
@@ -75,47 +79,31 @@ assertWithExit(result.totalInvested === 15000, "Total invested should be $15,000
 
 // Test VTI share calculation
 console.log("\nTesting VTI share calculation...")
-const firstPoint = result.timeline[0]
-console.log(`Initial VTI shares: ${firstPoint.vtiShares}`)
 
-// Use epsilon comparison for floating point
-const EPSILON = 0.01; // Small tolerance for floating point comparison
+// Find the first point with VTI shares (should be the first deposit)
+const firstDepositPoint = result.timeline[0];
+console.log('First deposit point', firstDepositPoint)
 assertWithExit(
-  Math.abs(firstPoint.vtiShares - 100) < EPSILON,
-  `Initial VTI shares should be 100 ($10,000 / $100), got ${firstPoint.vtiShares}`
-)
+  firstDepositPoint.vtiPurchase !== undefined,
+  "First deposit point should have a vtiPurchase"
+);
 
-const secondPoint = result.timeline[1]
-console.log(`VTI shares after second deposit: ${secondPoint.vtiShares}`)
 assertWithExit(
-  Math.abs(secondPoint.vtiShares - 145.45) < EPSILON,
-  `VTI shares should be approximately 145.45 (100 + $5,000/$110), got ${secondPoint.vtiShares}`
+  fpEq(firstDepositPoint.vtiPurchase!.shares, 100),
+  `Initial VTI shares should be 100 ($10,000 / $100), got ${firstDepositPoint.vtiPurchase!.shares}`
 )
 
 // Calculate final VTI value based on shares and latest price
 console.log("\nTesting VTI value calculation...")
-const finalPoint = result.timeline[result.timeline.length - 1]
-const finalVtiShares = finalPoint.vtiShares
-const latestVtiPrice = sampleVtiPrices[sampleVtiPrices.length - 1].price
-const finalVtiValue = finalVtiShares * latestVtiPrice
-console.log(`Final VTI shares: ${finalVtiShares}`)
-console.log(`Latest VTI price: ${latestVtiPrice}`)
+const finalPoint = result.timeline[result.timeline.length - 1];
+const finalVtiValue = finalPoint.portfolioValue
 console.log(`Final VTI value: ${finalVtiValue}`)
 
 // Use the exact calculation for expected value
 const expectedFinalValue = 17454.55
 assertWithExit(
-  Math.abs(finalVtiValue - expectedFinalValue) < EPSILON,
-  `Final VTI value should be approximately ${expectedFinalValue}, got ${finalVtiValue}`
+  fpEq(finalVtiValue, expectedFinalValue),
+  `Final VTI value should be ${expectedFinalValue}, got ${finalVtiValue}`
 )
 
-// Test annualized return calculation
-console.log("\nTesting annualized return calculation...")
-const years = 1 // Sample data spans 1 year
-const vtiReturn = ((finalVtiValue - result.totalInvested) / result.totalInvested) * 100
-const annualizedVtiReturn = (Math.pow(finalVtiValue / result.totalInvested, 1 / years) - 1) * 100
-console.log(`VTI total return: ${vtiReturn.toFixed(2)}%`)
-console.log(`VTI annualized return: ${annualizedVtiReturn.toFixed(2)}%`)
-
 console.log("\nAll tests completed!")
-

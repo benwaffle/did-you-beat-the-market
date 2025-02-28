@@ -1,6 +1,6 @@
 import type { RobinhoodTransaction, VtiPrice, PortfolioData, TimelinePoint } from "./types"
+import { addDays, eachDayOfInterval, isSameDay } from "date-fns"
 
-// Process Robinhood transaction data
 export function processRobinhoodData(data: any[]): RobinhoodTransaction[] {
   return data
     .filter((row) => row["Activity Date"] && row["Trans Code"]) // Filter out invalid rows
@@ -57,12 +57,10 @@ export function processRobinhoodData(data: any[]): RobinhoodTransaction[] {
     .reverse() // Reverse the order to process from oldest to newest
 }
 
-// Process VTI price data
 export function processVtiData(data: any[]): VtiPrice[] {
   return data
     .filter((row) => row["Date"] && row["Price"]) // Filter out invalid rows
     .map((row) => {
-      // Parse price from string (remove $ and commas)
       const price = Number.parseFloat(row["Price"].replace(/[$,]/g, ""))
       const open = Number.parseFloat(row["Open"].replace(/[$,]/g, ""))
       const high = Number.parseFloat(row["High"].toString().replace(/[$,]/g, ""))
@@ -78,133 +76,124 @@ export function processVtiData(data: any[]): VtiPrice[] {
         changePercent: row["Change %"],
       }
     })
-    .sort((a, b) => a.date.getTime() - b.date.getTime()) // Sort by date
+    .reverse()
 }
 
-// Calculate portfolio value and VTI comparison
+export function findVtiPriceForDate(date: Date, vtiPrices: VtiPrice[]): VtiPrice | null {
+  return vtiPrices.find((price) => isSameDay(price.date, date)) ?? null;
+}
+
+type SimulationTransaction = {
+  date: Date;
+  cash: number;
+};
+
 export function calculateComparison(
   transactions: RobinhoodTransaction[],
   vtiPrices: VtiPrice[],
 ): PortfolioData {
-  if (transactions.length === 0) {
-    throw new Error("No transactions found in the uploaded file")
-  }
-
   console.log(`Processing ${transactions.length} transactions`)
-  console.log(`First transaction: ${transactions[0].activityDate}`)
-  console.log(`Last transaction: ${transactions[transactions.length - 1].activityDate}`)
 
-  // Initialize portfolio tracking variables
   let totalInvested = 0;
-  const timeline: TimelinePoint[] = [];
-  let vtiShares = 0;
+  const simulation: SimulationTransaction[] = [];
 
-  // Process transactions chronologically and create timeline points
+  console.groupCollapsed("Processing transactions");
+
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i]
-    const dateStr = transaction.activityDate.toISOString().split("T")[0]
-    let isVtiPurchase = false;  // Flag to track if this transaction adds VTI shares
 
-    console.log(`Processing transaction ${i + 1}/${transactions.length}:`, {
-      date: dateStr,
-      type: transaction.transCode,
-      instrument: transaction.instrument,
-      amount: transaction.amount,
-    })
+    console.log(
+      `Processing transaction ${i + 1}/${transactions.length}:`,
+      transaction
+    );
 
-    // Update portfolio state based on transaction type
-    switch (transaction.transCode) {
-      case "Buy":
-      case "BTO":
-      case "Sell":
-      case "STC":
-        break
+    if (transaction.transCode === "ACH" && transaction.description === "ACH Deposit") {
+      totalInvested += transaction.amount
+      
+      simulation.push({
+        date: transaction.activityDate,
+        cash: transaction.amount,
+      })
 
-      case "ACH":
-        if (transaction.amount > 0) {
-          totalInvested += transaction.amount
-          
-          // Only update VTI shares for ACH deposits (cash inflows)
-          if (vtiPrices.length > 0) {
-            // Find the exact VTI price for this date
-            const transactionDate = transaction.activityDate.toISOString().split('T')[0];
-            const exactVtiPrice = vtiPrices.find(price => 
-              price.date.toISOString().split('T')[0] === transactionDate
-            );
-            
-            if (!exactVtiPrice) {
-              throw new Error(`No VTI price available for date: ${transactionDate}. Cannot calculate VTI shares.`);
-            }
-            
-            // Add new shares based on the deposit amount (works for first transaction too since vtiShares starts at 0)
-            vtiShares += transaction.amount / exactVtiPrice.price;
-            isVtiPurchase = true;  // Mark this as a VTI purchase
-          }
-        }
-        break
-
-      // Cash-related transactions
-      case "INT":  // Interest
-      case "CDIV": // Cash Dividend
-      case "REC":  // Receive/Receipt
-        break
-
-      // Fee-related transactions
-      case "AFEE": // Account Fee
-      case "DFEE": // Dividend Fee
-        break
-        
-      // Transactions that don't affect our investment tracking
-      case "BCXL": // Buy Cancel
-      case "SCXL": // Sell Cancel
-      case "SOFF": // Settlement Offset
-      case "SPL":  // Stock Split
-      case "SPR":  // Stock Split Reversal
-      case "SXCH": // Stock Exchange
-      case "T/A":  // Transfer/Adjustment
-      case "MRGC": // Margin Call
-      case "MRGS": // Margin Sell
-      case "OCA":  // Option Assignment
-      case "OEXP": // Option Expiration
-      case "SLIP": // Price Improvement
-      case "FUTSWP": // Future Swap
-      case "DTAX":   // Dividend Tax
-        console.log(`Ignoring transaction type: ${transaction.transCode} with amount: ${transaction.amount}`)
-        break
-
-      default:
-        console.warn(`Unknown transaction type: ${transaction.transCode} with amount: ${transaction.amount}`)
+      console.log(`VTI Purchase: Added ${transaction.amount} on ${transaction.activityDate}`);
+    } else if (transaction.transCode === "ACH" && transaction.description === "ACH CANCEL") {
+      // TODO
+      console.warn('Skipping ACH CANCEL', transaction)
+    } else {
+      console.warn('Skipping transaction', transaction)
     }
-
-    // Add timeline point - track date, VTI shares, and purchase flag
-    timeline.push({
-      date: dateStr,
-      vtiShares,
-      isVtiPurchase,
-    })
-
-    console.log("Timeline point added:", {
-      date: dateStr,
-      vtiShares,
-      totalInvested,
-      isVtiPurchase,
-    })
+    // TODO: withdrawals
   }
 
-  // Log final state
-  console.log("Final portfolio state:", {
-    timelinePoints: timeline.length,
-    totalInvested,
-  })
+  console.groupEnd();
 
-  if (timeline.length === 0) {
-    throw new Error("No timeline points were generated. This should never happen as we process every transaction.")
-  }
+  console.log("Total invested", totalInvested)
+  console.log("ACH Deposits aka VTI purchases", simulation)
 
+  const continuousTimeline = createContinuousTimeline(simulation, vtiPrices);
+
+  console.log("Continuous timeline", continuousTimeline)
+  
   return {
-    timeline,
+    timeline: continuousTimeline,
     transactions,
     totalInvested,
   }
+}
+
+// Create a continuous timeline with one point per day
+export function createContinuousTimeline(
+  simulation: SimulationTransaction[], 
+  vtiPrices: VtiPrice[],
+): TimelinePoint[] {
+  const startDate = new Date(simulation[0].date);
+  const endDate = new Date();
+  
+  console.log("Creating continuous timeline from", startDate, "to", endDate);
+  
+  const allDays = eachDayOfInterval({ start: startDate, end: endDate });
+
+  let result: TimelinePoint[] = [];
+  let vtiSharesOwned = 0;
+
+  for (const today of allDays) {
+    const dollarsInvestedToday = simulation
+      .filter((t) => isSameDay(t.date, today))
+      .reduce((acc, t) => {
+        return acc + t.cash;
+      }, 0);
+
+    const todaysVTIPrice = findVtiPriceForDate(today, vtiPrices)?.price;
+    if (!todaysVTIPrice) { // weekends, holidays, etc...
+      if (dollarsInvestedToday > 0) {
+        console.log('No VTI price found for', today, 'pretending the money was deposited the next day')
+        // pretend the money was deposited the next day. this should push purchases to open market days
+        for (let i = 0; i < simulation.length; i++) {
+          if (isSameDay(simulation[i].date, today)) {
+            simulation[i].date = addDays(simulation[i].date, 1);
+          }
+        }
+      }
+
+      continue;
+    }
+
+    vtiSharesOwned += dollarsInvestedToday / todaysVTIPrice;
+
+    result.push({
+      date: today,
+      portfolioValue: vtiSharesOwned * todaysVTIPrice,
+      vtiSharesHeld: vtiSharesOwned,
+      vtiPurchase:
+        dollarsInvestedToday > 0
+          ? {
+              shares: dollarsInvestedToday / todaysVTIPrice,
+              price: todaysVTIPrice,
+            }
+          : undefined,
+    });
+  }
+
+  return result;
 }
 

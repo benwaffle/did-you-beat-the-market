@@ -23,9 +23,13 @@ export interface VtiPrice {
 
 // Timeline point for comparison
 export interface TimelinePoint {
-  date: string
-  vtiShares: number
-  isVtiPurchase?: boolean  // Flag to indicate if VTI was purchased at this point
+  date: Date
+  portfolioValue: number
+  vtiSharesHeld: number
+  vtiPurchase?: {
+    shares: number
+    price: number
+  }
 }
 
 // Portfolio data structure

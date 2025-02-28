@@ -57,7 +57,7 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-4 rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg">
         <div>
           <h3 className="text-lg font-medium mb-4">Your Portfolio</h3>
           <div className="space-y-4">
@@ -66,7 +66,7 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <p className="text-2xl font-bold">{formatCurrency(totalInvested)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Current Value</p>
+              <p className="text-sm text-gray-500">Today's Value</p>
               <p className="text-2xl font-bold">{formatCurrency(endValue)}</p>
             </div>
             <div>
@@ -108,7 +108,7 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <p className="text-2xl font-bold">{formatCurrency(totalInvested)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Current Value</p>
+              <p className="text-sm text-gray-500">Today's Value</p>
               <p className="text-2xl font-bold">{formatCurrency(vtiEndValue)}</p>
             </div>
             <div>
@@ -142,8 +142,7 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
       </div>
 
       <div className="mt-4 text-sm text-gray-500">
-        Analysis period: {years.toFixed(1)} years ({formatPercentage(annualizedPortfolioReturn)} vs{" "}
-        {formatPercentage(annualizedVtiReturn)} annualized)
+        Analysis period: {years.toFixed(1)} years
       </div>
     </div>
   )
