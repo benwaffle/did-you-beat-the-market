@@ -8,6 +8,7 @@ interface SecurityHolding {
 interface PortfolioState {
   cash: number
   securities: Map<string, SecurityHolding>
+  totalInvested: number
 }
 
 // Process Robinhood transaction data
@@ -104,7 +105,11 @@ function calculatePortfolioValue(state: PortfolioState, latestPrices: Map<string
 }
 
 // Calculate portfolio value and VTI comparison
-export function calculateComparison(transactions: RobinhoodTransaction[], vtiPrices: VtiPrice[]): PortfolioData {
+export function calculateComparison(
+  transactions: RobinhoodTransaction[],
+  vtiPrices: VtiPrice[],
+  currentValue: number,
+): PortfolioData {
   if (transactions.length === 0) {
     throw new Error("No transactions found in the uploaded file")
   }
@@ -117,6 +122,7 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
   const portfolioState: PortfolioState = {
     cash: 0,
     securities: new Map(),
+    totalInvested: 0,
   }
 
   const timeline: TimelinePoint[] = []
@@ -149,6 +155,7 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
           })
           latestPrices.set(transaction.instrument, transaction.price)
           portfolioState.cash -= Math.abs(transaction.amount)
+          // Removed: portfolioState.totalInvested += Math.abs(transaction.amount)
         }
         break
 
@@ -172,13 +179,19 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
 
       case "ACH":
         portfolioState.cash += transaction.amount
+        if (transaction.amount > 0) {
+          portfolioState.totalInvested += transaction.amount
+        }
         break
 
       default:
         portfolioState.cash += transaction.amount
+        if (transaction.amount > 0) {
+          portfolioState.totalInvested += transaction.amount
+        }
     }
 
-    // Calculate portfolio value after the transaction
+    // Calculate intermediate portfolio value for historical tracking
     const portfolioValue = calculatePortfolioValue(portfolioState, latestPrices)
 
     // Find closest VTI price (if available)
@@ -207,7 +220,7 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
     // Add timeline point
     timeline.push({
       date: dateStr,
-      portfolioValue,
+      portfolioValue: i === transactions.length - 1 ? currentValue : portfolioValue, // Use current value for last point
       vtiValue,
       portfolioCashFlow: portfolioState.cash,
       vtiShares,
@@ -215,9 +228,10 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
 
     console.log("Timeline point added:", {
       date: dateStr,
-      portfolioValue,
+      portfolioValue: i === transactions.length - 1 ? currentValue : portfolioValue,
       vtiValue,
       cash: portfolioState.cash,
+      totalInvested: portfolioState.totalInvested,
     })
   }
 
@@ -226,6 +240,7 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
     cash: portfolioState.cash,
     securitiesCount: portfolioState.securities.size,
     timelinePoints: timeline.length,
+    totalInvested: portfolioState.totalInvested,
   })
 
   if (timeline.length === 0) {
@@ -235,6 +250,7 @@ export function calculateComparison(transactions: RobinhoodTransaction[], vtiPri
   return {
     timeline,
     transactions,
+    totalInvested: portfolioState.totalInvested,
   }
 }
 

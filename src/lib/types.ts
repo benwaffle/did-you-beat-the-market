@@ -34,19 +34,20 @@ export interface TimelinePoint {
 export interface PortfolioData {
   timeline: TimelinePoint[]
   transactions: RobinhoodTransaction[]
+  totalInvested: number
 }
 
 // Comparison result
 export interface ComparisonResult {
-  startDate: string
-  endDate: string
-  startValue: number
+  totalInvested: number
   endValue: number
-  vtiStartValue: number
   vtiEndValue: number
   portfolioReturn: number
   vtiReturn: number
+  annualizedPortfolioReturn: number
+  annualizedVtiReturn: number
   outperformance: number
   beatMarket: boolean
+  years: number
 }
 

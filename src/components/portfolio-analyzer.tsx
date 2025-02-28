@@ -2,12 +2,14 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ExternalLink, Upload, AlertCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ExternalLink, Upload, AlertCircle, DollarSign } from "lucide-react"
 import Papa from "papaparse"
 import PerformanceChart from "@/components/performance-chart"
 import SummaryStats from "@/components/summary-stats"
@@ -16,18 +18,22 @@ import type { RobinhoodTransaction, VtiPrice, PortfolioData, ComparisonResult } 
 
 export default function PortfolioAnalyzer() {
   const [robinhoodFile, setRobinhoodFile] = useState<File | null>(null)
+  const [currentValue, setCurrentValue] = useState<string>("")
   const [robinhoodData, setRobinhoodData] = useState<RobinhoodTransaction[]>([])
   const [vtiData, setVtiData] = useState<VtiPrice[]>([])
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null)
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load VTI data on component mount
   useEffect(() => {
     const loadVtiData = async () => {
       try {
-        const response = await fetch("/vti.csv");
+        const response = await fetch(
+          "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/vti.small-s8nXpqGTGkkAav0HN4AlWdQbb7EJ2u.csv",
+        )
         const text = await response.text()
 
         Papa.parse(text, {
@@ -57,9 +63,18 @@ export default function PortfolioAnalyzer() {
     }
   }
 
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click()
+  }
+
   const handleAnalyze = () => {
     if (!robinhoodFile) {
       setError("Please upload a Robinhood transaction file")
+      return
+    }
+
+    if (!currentValue || isNaN(Number.parseFloat(currentValue))) {
+      setError("Please enter your current portfolio value")
       return
     }
 
@@ -88,7 +103,7 @@ export default function PortfolioAnalyzer() {
 
           setRobinhoodData(processedRobinhoodData)
 
-          const portfolioData = calculateComparison(processedRobinhoodData, vtiData)
+          const portfolioData = calculateComparison(processedRobinhoodData, vtiData, Number.parseFloat(currentValue))
 
           if (portfolioData.timeline.length === 0) {
             throw new Error("Could not generate timeline data. Please check your transaction history.")
@@ -97,28 +112,33 @@ export default function PortfolioAnalyzer() {
           setPortfolioData(portfolioData)
 
           // Calculate summary statistics
-          const startDate = portfolioData.timeline[0].date
-          const endDate = portfolioData.timeline[portfolioData.timeline.length - 1].date
-          const startValue = portfolioData.timeline[0].portfolioValue
-          const endValue = portfolioData.timeline[portfolioData.timeline.length - 1].portfolioValue
-          const vtiStartValue = portfolioData.timeline[0].vtiValue
+          const totalInvested = portfolioData.totalInvested
+          const endValue = Number.parseFloat(currentValue)
           const vtiEndValue = portfolioData.timeline[portfolioData.timeline.length - 1].vtiValue
 
-          const portfolioReturn = startValue !== 0 ? ((endValue - startValue) / startValue) * 100 : 0
-          const vtiReturn = vtiStartValue !== 0 ? ((vtiEndValue - vtiStartValue) / vtiStartValue) * 100 : 0
+          // Calculate years between first and last transaction
+          const startDate = new Date(portfolioData.timeline[0].date)
+          const endDate = new Date(portfolioData.timeline[portfolioData.timeline.length - 1].date)
+          const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+
+          // Calculate annualized returns
+          const portfolioReturn = ((endValue - totalInvested) / totalInvested) * 100
+          const vtiReturn = ((vtiEndValue - totalInvested) / totalInvested) * 100
+          const annualizedPortfolioReturn = (Math.pow(endValue / totalInvested, 1 / years) - 1) * 100
+          const annualizedVtiReturn = (Math.pow(vtiEndValue / totalInvested, 1 / years) - 1) * 100
           const outperformance = portfolioReturn - vtiReturn
 
           setComparisonResult({
-            startDate,
-            endDate,
-            startValue,
+            totalInvested,
             endValue,
-            vtiStartValue,
             vtiEndValue,
             portfolioReturn,
             vtiReturn,
+            annualizedPortfolioReturn,
+            annualizedVtiReturn,
             outperformance,
             beatMarket: portfolioReturn > vtiReturn,
+            years,
           })
 
           setIsLoading(false)
@@ -137,66 +157,98 @@ export default function PortfolioAnalyzer() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Your Robinhood Transaction History</CardTitle>
-          <CardDescription>Compare your trading performance to a simple VTI buy-and-hold strategy</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium mb-2">How to get your Robinhood transaction history:</h3>
-              <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
-                <li>Log in to your Robinhood account</li>
-                <li>Go to Account → Statements & History → Account Statements</li>
-                <li>
-                  <a
-                    href="https://robinhood.com/account/reports-statements/activity-reports"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline inline-flex items-center"
-                  >
-                    Visit Robinhood Activity Reports <ExternalLink className="ml-1 h-3 w-3" />
-                  </a>
-                </li>
-                <li>Select "Account Summary" and choose your date range</li>
-                <li>Download the CSV file</li>
-              </ol>
-            </div>
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+        <div>
+          <h3 className="text-sm font-medium mb-2">How to get your Robinhood transaction history:</h3>
+          <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
+            <li>Log in to your Robinhood account</li>
+            <li>Go to Account → Statements & History → Account Statements</li>
+            <li>
+              <a
+                href="https://robinhood.com/account/reports-statements/activity-reports"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline inline-flex items-center"
+              >
+                Visit Robinhood Activity Reports <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
+            </li>
+            <li>Select "Account Summary" and choose your date range</li>
+            <li>Download the CSV file</li>
+          </ol>
+        </div>
 
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-              <div className="mb-4">
-                <Upload className="h-8 w-8 text-gray-400" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Upload Your Data</CardTitle>
+            <CardDescription>
+              Upload your Robinhood transaction history and enter your current portfolio value
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+                <div className="mb-4">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                </div>
+                <div className="flex items-center justify-center">
+                  <label className="flex flex-col items-center space-y-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      {robinhoodFile ? robinhoodFile.name : "Upload Robinhood CSV"}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {robinhoodFile ? `${(robinhoodFile.size / 1024).toFixed(2)} KB` : "CSV file only"}
+                    </span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".csv"
+                      onChange={handleFileChange}
+                    />
+                    <Button variant="outline" type="button" onClick={handleFileButtonClick} className="mt-2">
+                      {robinhoodFile ? "Change File" : "Select File"}
+                    </Button>
+                  </label>
+                </div>
               </div>
-              <div className="flex items-center justify-center">
-                <label className="flex flex-col items-center space-y-2 cursor-pointer">
-                  <span className="text-sm font-medium text-gray-700">
-                    {robinhoodFile ? robinhoodFile.name : "Upload Robinhood CSV"}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {robinhoodFile ? `${(robinhoodFile.size / 1024).toFixed(2)} KB` : "CSV file only"}
-                  </span>
-                  <input type="file" className="hidden" accept=".csv" onChange={handleFileChange} />
-                  <Button variant="outline" type="button" className="mt-2">
-                    {robinhoodFile ? "Change File" : "Select File"}
-                  </Button>
-                </label>
+
+              <div className="space-y-2">
+                <Label htmlFor="currentValue">Current Portfolio Value</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <Input
+                    id="currentValue"
+                    type="number"
+                    placeholder="Enter your current portfolio value"
+                    value={currentValue}
+                    onChange={(e) => setCurrentValue(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Enter the current total value of your Robinhood portfolio
+                </p>
               </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button
+                onClick={handleAnalyze}
+                disabled={!robinhoodFile || !currentValue || isLoading}
+                className="w-full"
+              >
+                {isLoading ? "Analyzing..." : "Analyze Performance"}
+              </Button>
             </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Button onClick={handleAnalyze} disabled={!robinhoodFile || isLoading} className="w-full">
-              {isLoading ? "Analyzing..." : "Analyze Performance"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {portfolioData && comparisonResult && (
         <Tabs defaultValue="overview" className="space-y-4">
@@ -212,11 +264,11 @@ export default function PortfolioAnalyzer() {
           <TabsContent value="chart">
             <Card>
               <CardHeader>
-                <CardTitle>Performance Comparison</CardTitle>
-                <CardDescription>Your portfolio vs. VTI buy-and-hold strategy</CardDescription>
+                <CardTitle>VTI Buy & Hold Performance</CardTitle>
+                <CardDescription>How your money would have grown if invested in VTI</CardDescription>
               </CardHeader>
               <CardContent>
-                <PerformanceChart data={portfolioData.timeline} />
+                <PerformanceChart data={portfolioData.timeline} showPortfolio={false} />
               </CardContent>
             </Card>
           </TabsContent>

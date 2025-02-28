@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react"
-import { format } from "date-fns"
 import type { ComparisonResult } from "@/lib/types"
 
 interface SummaryStatsProps {
@@ -11,16 +10,16 @@ interface SummaryStatsProps {
 
 export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
   const {
-    startDate,
-    endDate,
-    startValue,
+    totalInvested,
     endValue,
-    vtiStartValue,
     vtiEndValue,
     portfolioReturn,
     vtiReturn,
+    annualizedPortfolioReturn,
+    annualizedVtiReturn,
     outperformance,
     beatMarket,
+    years,
   } = comparisonResult
 
   const formatCurrency = (value: number) => {
@@ -34,10 +33,6 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
 
   const formatPercentage = (value: number) => {
     return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`
-  }
-
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "MMMM d, yyyy")
   }
 
   return (
@@ -69,11 +64,11 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <h3 className="text-lg font-medium mb-4">Your Portfolio</h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500">Starting Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(startValue)}</p>
+                  <p className="text-sm text-gray-500">Total Cash Invested</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalInvested)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Ending Value</p>
+                  <p className="text-sm text-gray-500">Current Value</p>
                   <p className="text-2xl font-bold">{formatCurrency(endValue)}</p>
                 </div>
                 <div>
@@ -89,6 +84,21 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
                     )}
                   </div>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">Annualized Return</p>
+                  <div className="flex items-center">
+                    <p
+                      className={`text-2xl font-bold ${annualizedPortfolioReturn >= 0 ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {formatPercentage(annualizedPortfolioReturn)}
+                    </p>
+                    {annualizedPortfolioReturn >= 0 ? (
+                      <ArrowUpRight className="ml-1 h-5 w-5 text-green-600" />
+                    ) : (
+                      <ArrowDownRight className="ml-1 h-5 w-5 text-red-600" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -96,11 +106,11 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <h3 className="text-lg font-medium mb-4">VTI Buy & Hold</h3>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-500">Starting Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(vtiStartValue)}</p>
+                  <p className="text-sm text-gray-500">Total Cash Invested</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalInvested)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Ending Value</p>
+                  <p className="text-sm text-gray-500">Current Value</p>
                   <p className="text-2xl font-bold">{formatCurrency(vtiEndValue)}</p>
                 </div>
                 <div>
@@ -116,13 +126,27 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
                     )}
                   </div>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">Annualized Return</p>
+                  <div className="flex items-center">
+                    <p className={`text-2xl font-bold ${annualizedVtiReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatPercentage(annualizedVtiReturn)}
+                    </p>
+                    {annualizedVtiReturn >= 0 ? (
+                      <ArrowUpRight className="ml-1 h-5 w-5 text-green-600" />
+                    ) : (
+                      <ArrowDownRight className="ml-1 h-5 w-5 text-red-600" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="mt-6 pt-6 border-t">
             <p className="text-sm text-gray-500">
-              Analysis Period: {formatDate(startDate)} to {formatDate(endDate)}
+              Analysis period: {years.toFixed(1)} years ({formatPercentage(annualizedPortfolioReturn)} vs{" "}
+              {formatPercentage(annualizedVtiReturn)} annualized)
             </p>
           </div>
         </CardContent>
@@ -139,8 +163,9 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <>
                 <p>
                   Congratulations! Your active trading strategy outperformed a simple buy-and-hold approach with VTI by{" "}
-                  {formatPercentage(outperformance)}. This suggests your investment decisions have added value compared
-                  to a passive index strategy.
+                  {formatPercentage(outperformance)} (
+                  {formatPercentage(annualizedPortfolioReturn - annualizedVtiReturn)} annualized). This suggests your
+                  investment decisions have added value compared to a passive index strategy.
                 </p>
                 <p>
                   Keep in mind that past performance doesn't guarantee future results, and it's important to consider
@@ -152,8 +177,10 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
               <>
                 <p>
                   Your portfolio underperformed a simple buy-and-hold approach with VTI by{" "}
-                  {formatPercentage(Math.abs(outperformance))}. This is actually quite common - studies show that the
-                  majority of active traders underperform the market over time.
+                  {formatPercentage(Math.abs(outperformance))}(
+                  {formatPercentage(Math.abs(annualizedPortfolioReturn - annualizedVtiReturn))} annualized). This is
+                  actually quite common - studies show that the majority of active traders underperform the market over
+                  time.
                 </p>
                 <p>
                   Consider whether the time and effort spent on active trading is worth the results, or if a more

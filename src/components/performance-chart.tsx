@@ -8,9 +8,10 @@ import type { TimelinePoint } from "@/lib/types"
 
 interface PerformanceChartProps {
   data: TimelinePoint[]
+  showPortfolio?: boolean
 }
 
-export default function PerformanceChart({ data }: PerformanceChartProps) {
+export default function PerformanceChart({ data, showPortfolio = true }: PerformanceChartProps) {
   const [timeframe, setTimeframe] = useState<"all" | "1y" | "6m" | "3m">("all")
 
   const filterData = () => {
@@ -39,7 +40,6 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
   const chartData = filterData().map((point) => ({
     ...point,
     date: format(new Date(point.date), "MMM dd, yyyy"),
-    portfolioValue: Number(point.portfolioValue.toFixed(2)),
     vtiValue: Number(point.vtiValue.toFixed(2)),
   }))
 
@@ -90,7 +90,6 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                   dataKey="date"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(value) => {
-                    // Simplify date format for x-axis
                     const date = new Date(value)
                     return format(date, "MMM yy")
                   }}
@@ -101,14 +100,16 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
                   labelFormatter={(label) => `Date: ${label}`}
                 />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="portfolioValue"
-                  name="Your Portfolio"
-                  stroke="#8884d8"
-                  activeDot={{ r: 8 }}
-                  strokeWidth={2}
-                />
+                {showPortfolio && (
+                  <Line
+                    type="monotone"
+                    dataKey="portfolioValue"
+                    name="Your Portfolio"
+                    stroke="#8884d8"
+                    activeDot={{ r: 8 }}
+                    strokeWidth={2}
+                  />
+                )}
                 <Line type="monotone" dataKey="vtiValue" name="VTI Buy & Hold" stroke="#82ca9d" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
