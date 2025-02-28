@@ -31,9 +31,7 @@ export default function PortfolioAnalyzer() {
   useEffect(() => {
     const loadVtiData = async () => {
       try {
-        const response = await fetch(
-          "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/vti.small-s8nXpqGTGkkAav0HN4AlWdQbb7EJ2u.csv",
-        )
+        const response = await fetch("/vti.csv")
         const text = await response.text()
 
         Papa.parse(text, {
