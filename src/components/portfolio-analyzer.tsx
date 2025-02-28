@@ -116,21 +116,24 @@ export default function PortfolioAnalyzer() {
           const finalPoint = portfolioData.timeline[portfolioData.timeline.length - 1]
           const vtiEndValue = finalPoint.portfolioValue
 
-          console.log("Final VTI calculation:", {
-            vtiEndValue,
-          });
-
           // Calculate years between first and last transaction
           const startDate = new Date(portfolioData.timeline[0].date)
           const endDate = new Date(portfolioData.timeline[portfolioData.timeline.length - 1].date)
           const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
 
-          // Calculate annualized returns
+          // Calculate returns
           const portfolioReturn = ((endValue - totalInvested) / totalInvested) * 100
           const vtiReturn = ((vtiEndValue - totalInvested) / totalInvested) * 100
-          const annualizedPortfolioReturn = (Math.pow(endValue / totalInvested, 1 / years) - 1) * 100
-          const annualizedVtiReturn = (Math.pow(vtiEndValue / totalInvested, 1 / years) - 1) * 100
           const outperformance = portfolioReturn - vtiReturn
+
+          console.log('result', {
+            totalInvested,
+            endValue,
+            vtiEndValue,
+            portfolioReturn,
+            vtiReturn,
+            years,
+          })
 
           setComparisonResult({
             totalInvested,
@@ -138,8 +141,6 @@ export default function PortfolioAnalyzer() {
             vtiEndValue,
             portfolioReturn,
             vtiReturn,
-            annualizedPortfolioReturn,
-            annualizedVtiReturn,
             outperformance,
             beatMarket: portfolioReturn > vtiReturn,
             years,
@@ -267,7 +268,7 @@ export default function PortfolioAnalyzer() {
           </div>
 
           <div className="lg:col-span-8">
-            <h2 className="text-xl font-semibold mb-4">VTI Buy & Hold Performance</h2>
+            <h2 className="text-xl font-semibold mb-4">Simulated Total Stock Market ETF Performance</h2>
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <PerformanceChart data={portfolioData.timeline} />
             </div>

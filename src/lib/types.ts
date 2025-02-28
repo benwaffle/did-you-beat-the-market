@@ -45,8 +45,6 @@ export interface ComparisonResult {
   vtiEndValue: number
   portfolioReturn: number
   vtiReturn: number
-  annualizedPortfolioReturn: number
-  annualizedVtiReturn: number
   outperformance: number
   beatMarket: boolean
   years: number

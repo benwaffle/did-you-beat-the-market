@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react"
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Frown } from "lucide-react"
 import type { ComparisonResult } from "@/lib/types"
 
 interface SummaryStatsProps {
@@ -14,8 +14,6 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
     vtiEndValue,
     portfolioReturn,
     vtiReturn,
-    annualizedPortfolioReturn,
-    annualizedVtiReturn,
     outperformance,
     beatMarket,
     years,
@@ -47,13 +45,14 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
             <>
               <TrendingDown className="mr-2 h-6 w-6 text-red-500" />
               <span>The Market Beat You</span>
+              <Frown className="ml-2 h-6 w-6 text-red-500" />
             </>
           )}
         </h3>
         <p className="text-sm text-gray-600">
           {beatMarket
-            ? `Your portfolio outperformed VTI by ${formatPercentage(outperformance)}`
-            : `Your portfolio underperformed VTI by ${formatPercentage(Math.abs(outperformance))}`}
+            ? `Your portfolio outperformed VTI (Vanguard Total Stock Market ETF) by ${formatPercentage(outperformance)}`
+            : `Your portfolio underperformed VTI (Vanguard Total Stock Market ETF) by ${formatPercentage(Math.abs(outperformance))}`}
         </p>
       </div>
 
@@ -82,21 +81,6 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
                 )}
               </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Annualized Return</p>
-              <div className="flex items-center">
-                <p
-                  className={`text-2xl font-bold ${annualizedPortfolioReturn >= 0 ? "text-green-600" : "text-red-600"}`}
-                >
-                  {formatPercentage(annualizedPortfolioReturn)}
-                </p>
-                {annualizedPortfolioReturn >= 0 ? (
-                  <ArrowUpRight className="ml-1 h-5 w-5 text-green-600" />
-                ) : (
-                  <ArrowDownRight className="ml-1 h-5 w-5 text-red-600" />
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -118,19 +102,6 @@ export default function SummaryStats({ comparisonResult }: SummaryStatsProps) {
                   {formatPercentage(vtiReturn)}
                 </p>
                 {vtiReturn >= 0 ? (
-                  <ArrowUpRight className="ml-1 h-5 w-5 text-green-600" />
-                ) : (
-                  <ArrowDownRight className="ml-1 h-5 w-5 text-red-600" />
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Annualized Return</p>
-              <div className="flex items-center">
-                <p className={`text-2xl font-bold ${annualizedVtiReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {formatPercentage(annualizedVtiReturn)}
-                </p>
-                {annualizedVtiReturn >= 0 ? (
                   <ArrowUpRight className="ml-1 h-5 w-5 text-green-600" />
                 ) : (
                   <ArrowDownRight className="ml-1 h-5 w-5 text-red-600" />

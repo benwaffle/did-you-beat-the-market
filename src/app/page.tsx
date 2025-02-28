@@ -3,7 +3,7 @@ import PortfolioAnalyzer from "@/components/portfolio-analyzer"
 
 export const metadata: Metadata = {
   title: "Did You Beat the Market? - Robinhood Portfolio Analyzer",
-  description: "Compare your Robinhood portfolio performance to a VTI buy-and-hold strategy",
+  description: "Compare your Robinhood portfolio performance to a total stock market index fund strategy",
 }
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-gray-900">Did You Beat the Market?</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Compare your Robinhood portfolio performance to a VTI buy-and-hold strategy
+            Compare your Robinhood portfolio performance to a total stock market index fund strategy
           </p>
         </div>
       </header>
