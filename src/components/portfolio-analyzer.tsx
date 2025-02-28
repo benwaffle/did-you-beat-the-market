@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { calculateComparison, processRobinhoodData, processVtiData } from "@/lib/data-processor"
 import type { ComparisonResult, PortfolioData, VtiPrice } from "@/lib/types"
-import { AlertCircle, DollarSign, ExternalLink, Info, Upload } from "lucide-react"
+import { AlertCircle, DollarSign, ExternalLink, Info, Upload, Shield } from "lucide-react"
 import Papa from "papaparse"
 import { useEffect, useRef, useState } from "react"
 
@@ -183,7 +183,14 @@ export default function PortfolioAnalyzer() {
           <Alert variant="default" className="mt-2">
             <Info className="h-3 w-3" />
             <AlertDescription>
-              Report generation can take a couple of hours to complete.
+              Robinhood can take a couple of hours to generate the report
+            </AlertDescription>
+          </Alert>
+          
+          <Alert variant="default" className="mt-2">
+            <Shield className="h-3 w-3" />
+            <AlertDescription>
+              Your data is processed entirely in your browser and never sent to any server
             </AlertDescription>
           </Alert>
         </div>
@@ -192,7 +199,8 @@ export default function PortfolioAnalyzer() {
           <CardHeader>
             <CardTitle>Upload Your Data</CardTitle>
             <CardDescription>
-              Upload your Robinhood transaction history and enter your current portfolio value
+              Upload your Robinhood transaction history and enter your current portfolio value.
+              All data is processed locally in your browser and never sent to any server.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -226,7 +234,7 @@ export default function PortfolioAnalyzer() {
               <div className="space-y-2">
                 <Label htmlFor="currentValue">Current Portfolio Value</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <DollarSign className="absolute left-3 top-2 h-5 w-5 text-gray-400" />
                   <Input
                     id="currentValue"
                     type="number"
@@ -255,6 +263,11 @@ export default function PortfolioAnalyzer() {
               >
                 {isLoading ? "Analyzing..." : "Analyze Performance"}
               </Button>
+              
+              <div className="flex items-center justify-center text-xs text-gray-500">
+                <Shield className="h-3 w-3 mr-1" />
+                <span>Your data never leaves your browser</span>
+              </div>
             </div>
           </CardContent>
         </Card>
