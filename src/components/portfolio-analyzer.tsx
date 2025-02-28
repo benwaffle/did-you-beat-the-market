@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { calculateComparison, processRobinhoodData, processVtiData } from "@/lib/data-processor"
 import type { ComparisonResult, PortfolioData, VtiPrice } from "@/lib/types"
-import { AlertCircle, DollarSign, ExternalLink, Upload } from "lucide-react"
+import { AlertCircle, DollarSign, ExternalLink, Info, Upload } from "lucide-react"
 import Papa from "papaparse"
 import { useEffect, useRef, useState } from "react"
 
@@ -97,7 +97,10 @@ export default function PortfolioAnalyzer() {
             throw new Error("No valid transactions found in the uploaded file")
           }
 
+
+          console.time("Calculating comparison")
           const portfolioData = calculateComparison(processedRobinhoodData, vtiData)
+          console.timeEnd("Calculating comparison")
 
           if (portfolioData.timeline.length === 0) {
             throw new Error("Could not generate timeline data. Please check your transaction history.")
@@ -163,7 +166,6 @@ export default function PortfolioAnalyzer() {
           <h3 className="text-sm font-medium mb-2">How to get your Robinhood transaction history:</h3>
           <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
             <li>Log in to your Robinhood account</li>
-            <li>Go to Account → Statements & History → Account Statements</li>
             <li>
               <a
                 href="https://robinhood.com/account/reports-statements/activity-reports"
@@ -174,9 +176,15 @@ export default function PortfolioAnalyzer() {
                 Visit Robinhood Activity Reports <ExternalLink className="ml-1 h-3 w-3" />
               </a>
             </li>
-            <li>Select "Account Summary" and choose your date range</li>
+            <li>Choose your date range and generate the report</li>
             <li>Download the CSV file</li>
           </ol>
+          <Alert variant="default" className="mt-2">
+            <Info className="h-3 w-3" />
+            <AlertDescription>
+              Report generation can take a couple of hours to complete.
+            </AlertDescription>
+          </Alert>
         </div>
 
         <Card>

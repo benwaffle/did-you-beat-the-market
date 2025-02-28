@@ -79,8 +79,25 @@ export function processVtiData(data: any[]): VtiPrice[] {
     .reverse()
 }
 
+// binary search for the vti price for a given date
 export function findVtiPriceForDate(date: Date, vtiPrices: VtiPrice[]): VtiPrice | null {
-  return vtiPrices.find((price) => isSameDay(price.date, date)) ?? null;
+  let left = 0;
+  let right = vtiPrices.length - 1;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const price = vtiPrices[mid];
+
+    if (isSameDay(price.date, date)) {
+      return price;
+    } else if (price.date < date) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return null;
 }
 
 type SimulationTransaction = {

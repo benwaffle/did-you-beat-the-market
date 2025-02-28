@@ -84,8 +84,6 @@ export default function PerformanceChart({ data }: { data: TimelinePoint[] }) {
     return data;
   }, [filteredData]);
 
-  console.log(chartData);
-
   return (
     <div className="space-y-4">
       <div className="flex space-x-2">
