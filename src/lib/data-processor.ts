@@ -204,17 +204,24 @@ export function calculateComparison(
       }, vtiPrices[0])
 
       if (timeline.length === 0) {
-        // First transaction - initialize VTI position
+        // First transaction - initialize VTI position - maintain full precision
         vtiShares = portfolioValue / closestVtiPrice.price
       } else {
-        // Calculate cash flow and adjust VTI shares
+        // Calculate cash flow and adjust VTI shares - maintain full precision
         const lastPoint = timeline[timeline.length - 1]
         const cashFlow = portfolioValue - lastPoint.portfolioValue
         if (cashFlow !== 0) {
           vtiShares += cashFlow / closestVtiPrice.price
         }
       }
-      vtiValue = vtiShares * closestVtiPrice.price
+
+      // For the final point, use the last VTI price in the dataset
+      const vtiPrice = i === transactions.length - 1 && vtiPrices.length > 0
+        ? vtiPrices[vtiPrices.length - 1].price
+        : closestVtiPrice.price;
+
+      // Calculate VTI value - maintain full precision
+      vtiValue = vtiShares * vtiPrice
     }
 
     // Add timeline point

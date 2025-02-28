@@ -1,4 +1,15 @@
 import { calculateComparison } from "../src/lib/data-processor"
+import assert from "assert"
+
+// Custom assertion function that exits with error code 1 on failure
+function assertWithExit(condition: boolean, message: string): void {
+  try {
+    assert(condition, message)
+  } catch (error) {
+    console.error(`Assertion failed: ${message}`)
+    process.exit(1)
+  }
+}
 
 // Sample test data
 const sampleTransactions = [
@@ -60,26 +71,35 @@ const sampleVtiPrices = [
 console.log("Testing total invested calculation...")
 const result = calculateComparison(sampleTransactions, sampleVtiPrices, 18000)
 console.log(`Total invested: ${result.totalInvested}`)
-console.assert(result.totalInvested === 15000, "Total invested should be $15,000")
+assertWithExit(result.totalInvested === 15000, "Total invested should be $15,000")
 
 // Test VTI share calculation
 console.log("\nTesting VTI share calculation...")
 const firstPoint = result.timeline[0]
 console.log(`Initial VTI shares: ${firstPoint.vtiShares}`)
-console.assert(firstPoint.vtiShares === 100, "Initial VTI shares should be 100 ($10,000 / $100)")
+
+// Use epsilon comparison for floating point
+const EPSILON = 0.01; // Small tolerance for floating point comparison
+assertWithExit(
+  Math.abs(firstPoint.vtiShares - 100) < EPSILON,
+  `Initial VTI shares should be 100 ($10,000 / $100), got ${firstPoint.vtiShares}`
+)
 
 const secondPoint = result.timeline[1]
 console.log(`VTI shares after second deposit: ${secondPoint.vtiShares}`)
-console.assert(secondPoint.vtiShares === 145.45, "VTI shares should be 145.45 (100 + $5,000/$110)")
+assertWithExit(
+  Math.abs(secondPoint.vtiShares - 145.45) < EPSILON,
+  `VTI shares should be approximately 145.45 (100 + $5,000/$110), got ${secondPoint.vtiShares}`
+)
 
 // Test VTI value calculation
 console.log("\nTesting VTI value calculation...")
 const finalPoint = result.timeline[result.timeline.length - 1]
 console.log(`Final VTI value: ${finalPoint.vtiValue}`)
-const expectedFinalValue = 145.45 * 120
-console.assert(
-  Math.abs(finalPoint.vtiValue - expectedFinalValue) < 0.01,
-  `Final VTI value should be ${expectedFinalValue}`,
+const expectedFinalValue = 145.4545 * 120 //17454.55
+assertWithExit(
+  Math.abs(finalPoint.vtiValue - expectedFinalValue) < EPSILON,
+  `Final VTI value should be approximately ${expectedFinalValue}, got ${finalPoint.vtiValue}`
 )
 
 // Test annualized return calculation
